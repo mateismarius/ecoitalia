@@ -1,13 +1,13 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTransition } from 'react'; // ← ADAUGĂ
+import { useTransition, useEffect, useState } from 'react';
 import {
     buildUrlFromFilters,
     parseFiltersFromUrlSearchParams,
     parseSortFromUrlSearchParams
 } from '@/lib/utils/url-state';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react'; // ← ADAUGĂ Loader2
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 
 interface ProductPaginationProps {
     currentPage: number;
@@ -25,21 +25,31 @@ export default function ProductPagination({
     const currentFilters = parseFiltersFromUrlSearchParams(searchParams);
     const currentSort = parseSortFromUrlSearchParams(searchParams);
 
-    const [isPending, startTransition] = useTransition(); // ← ADAUGĂ
+    const [isPending, startTransition] = useTransition();
+    const [optimisticPage, setOptimisticPage] = useState(currentPage);
+
+    // Reset optimistic state când se primește pagina reală
+    useEffect(() => {
+        setOptimisticPage(currentPage);
+    }, [currentPage]);
 
     const handlePageChange = (page: number) => {
-        if (page < 1 || page > totalPages || isPending) return; // ← ADAUGĂ check pentru isPending
+        if (page < 1 || page > totalPages || isPending) return;
+
+        // Optimistic update - arată imediat noua pagină
+        setOptimisticPage(page);
 
         const newUrl = `/produse${buildUrlFromFilters(currentFilters, currentSort, page)}`;
 
-        // ← WRAPPĂ în transition
         startTransition(() => {
-            router.push(newUrl);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            router.push(newUrl, { scroll: false }); // Nu mai facem scroll automat
+            // Scroll manual după un mic delay pentru smooth effect
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
         });
     };
 
-    // ... (getPageNumbers function stays the same)
     const getPageNumbers = () => {
         const pages: (number | string)[] = [];
         const showEllipsis = totalPages > 7;
@@ -49,12 +59,15 @@ export default function ProductPagination({
                 pages.push(i);
             }
         } else {
-            if (currentPage <= 3) {
+            // Folosim optimisticPage pentru a calcula paginile vizibile
+            const current = optimisticPage;
+
+            if (current <= 3) {
                 pages.push(1, 2, 3, 4, '...', totalPages);
-            } else if (currentPage >= totalPages - 2) {
+            } else if (current >= totalPages - 2) {
                 pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
             } else {
-                pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                pages.push(1, '...', current - 1, current, current + 1, '...', totalPages);
             }
         }
 
@@ -63,16 +76,16 @@ export default function ProductPagination({
 
     const pageNumbers = getPageNumbers();
     const itemsPerPage = 20;
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    const startItem = (optimisticPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(optimisticPage * itemsPerPage, totalItems);
 
     return (
         <div className="space-y-4">
-            {/* ← ADAUGĂ Loading indicator */}
+            {/* Loading overlay - mai vizibil */}
             {isPending && (
-                <div className="flex items-center justify-center gap-2 text-[#1C4E80] py-2">
-                    <Loader2 size={20} className="animate-spin" />
-                    <span className="text-sm font-medium">Se incarca...</span>
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white shadow-lg rounded-full px-6 py-3 flex items-center gap-3 border-2 border-[#1C4E80]">
+                    <Loader2 size={20} className="animate-spin text-[#1C4E80]" />
+                    <span className="text-sm font-semibold text-[#1C4E80]">Încarc produsele...</span>
                 </div>
             )}
 
@@ -86,7 +99,7 @@ export default function ProductPagination({
                 {/* First Page - Desktop only */}
                 <button
                     onClick={() => handlePageChange(1)}
-                    disabled={currentPage === 1 || isPending} // ← ADAUGĂ isPending
+                    disabled={optimisticPage === 1 || isPending}
                     className="hidden md:flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-[#F8F7F4] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
                     aria-label="First page"
                 >
@@ -95,8 +108,8 @@ export default function ProductPagination({
 
                 {/* Previous Page */}
                 <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1 || isPending} // ← ADAUGĂ isPending
+                    onClick={() => handlePageChange(optimisticPage - 1)}
+                    disabled={optimisticPage === 1 || isPending}
                     className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-[#F8F7F4] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
                     aria-label="Previous page"
                 >
@@ -118,14 +131,15 @@ export default function ProductPagination({
                         }
 
                         const pageNum = page as number;
-                        const isActive = pageNum === currentPage;
+                        const isActive = pageNum === optimisticPage;
+                        const isLoading = isPending && pageNum === optimisticPage;
 
                         return (
                             <button
                                 key={pageNum}
                                 onClick={() => handlePageChange(pageNum)}
-                                disabled={isPending} // ← ADAUGĂ disabled
-                                className={`w-10 h-10 rounded-lg font-medium transition-all disabled:cursor-wait ${
+                                disabled={isPending}
+                                className={`w-10 h-10 rounded-lg font-medium transition-all disabled:cursor-wait relative ${
                                     isActive
                                         ? 'bg-[#1C4E80] text-white shadow-lg'
                                         : 'border border-gray-300 text-[#2C3538] hover:bg-[#F8F7F4] active:scale-95 disabled:opacity-50'
@@ -133,7 +147,11 @@ export default function ProductPagination({
                                 aria-label={`Page ${pageNum}`}
                                 aria-current={isActive ? 'page' : undefined}
                             >
-                                {pageNum}
+                                {isLoading ? (
+                                    <Loader2 size={16} className="animate-spin mx-auto" />
+                                ) : (
+                                    pageNum
+                                )}
                             </button>
                         );
                     })}
@@ -141,8 +159,8 @@ export default function ProductPagination({
 
                 {/* Next Page */}
                 <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages || isPending} // ← ADAUGĂ isPending
+                    onClick={() => handlePageChange(optimisticPage + 1)}
+                    disabled={optimisticPage === totalPages || isPending}
                     className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-[#F8F7F4] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
                     aria-label="Next page"
                 >
@@ -152,7 +170,7 @@ export default function ProductPagination({
                 {/* Last Page - Desktop only */}
                 <button
                     onClick={() => handlePageChange(totalPages)}
-                    disabled={currentPage === totalPages || isPending} // ← ADAUGĂ isPending
+                    disabled={optimisticPage === totalPages || isPending}
                     className="hidden md:flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 hover:bg-[#F8F7F4] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
                     aria-label="Last page"
                 >
@@ -162,7 +180,7 @@ export default function ProductPagination({
 
             {/* Items info - Desktop */}
             <div className="hidden md:block text-center text-sm text-[#7C8B96]">
-                Afisezi produsele {startItem}-{endItem} din {totalItems}
+                Afișezi produsele {startItem}-{endItem} din {totalItems}
             </div>
 
             {/* Quick Jump */}
@@ -176,14 +194,18 @@ export default function ProductPagination({
                         type="number"
                         min={1}
                         max={totalPages}
-                        defaultValue={currentPage}
-                        disabled={isPending} // ← ADAUGĂ disabled
-                        onKeyPress={(e) => {
+                        value={optimisticPage}
+                        disabled={isPending}
+                        onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (value >= 1 && value <= totalPages) {
+                                setOptimisticPage(value);
+                            }
+                        }}
+                        onKeyDown={(e) => {  // ✅ SCHIMBAT de la onKeyPress
                             if (e.key === 'Enter' && !isPending) {
-                                const value = parseInt((e.target as HTMLInputElement).value);
-                                if (value >= 1 && value <= totalPages) {
-                                    handlePageChange(value);
-                                }
+                                e.preventDefault(); // ✅ ADĂUGAT pentru a preveni submit-ul formularului
+                                handlePageChange(optimisticPage);
                             }
                         }}
                         className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-[#1C4E80] focus:border-[#1C4E80] outline-none text-sm disabled:opacity-50 disabled:cursor-wait"

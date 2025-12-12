@@ -1,106 +1,119 @@
-'use client'
-
+import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingCart } from 'lucide-react';
 import { WCProduct } from '@/lib/woocommerce/types';
-import {
-    formatPrice,
-    getDiscountPercentage,
-    getProductImage,
-    isInStock
-} from '@/lib/woocommerce/helpers';
+import { ShoppingCart } from 'lucide-react';
 
 interface ProductCardProps {
     product: WCProduct;
-    priority?: boolean;
 }
 
-export default function ProductCard({ product, priority = false }: ProductCardProps) {
-    const imageUrl = getProductImage(product);
-    const discount = getDiscountPercentage(product);
-    const inStock = isInStock(product);
+export default function ProductCard({ product }: ProductCardProps) {
+    const imageUrl = product.images[0]?.src || '/placeholder-product.jpg';
+    const isOnSale = product.on_sale && parseFloat(product.sale_price) > 0;
+    const inStock = product.stock_status === 'instock';
 
-    // Link catre magazinul WordPress
-    const productUrl = `/magazin/produs/${product.slug}`;
+    // Calculate discount percentage
+    const discountPercent = isOnSale
+        ? Math.round(
+            ((parseFloat(product.regular_price) - parseFloat(product.sale_price)) /
+                parseFloat(product.regular_price)) *
+            100
+        )
+        : 0;
 
     return (
-        <a
-            href={productUrl}
-            className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-[#C19A6B] relative"
+        <Link
+            href={`/produse/${product.slug}`}
+            // ✅ OPTIMIZARE: Prefetch pentru încărcare mai rapidă
+            prefetch={true}
+            className="group bg-white rounded-lg md:rounded-xl shadow-sm hover:shadow-xl transition-all overflow-hidden border border-gray-100 hover:border-[#C19A6B] active:scale-[0.98]"
         >
-            {/* Badge reducere */}
-            {product.on_sale && discount > 0 && (
-                <div className="absolute top-3 right-3 z-10 bg-[#C19A6B] text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-                    -{discount}%
-                </div>
-            )}
-
-            {/* Imagine produs */}
-            <div className="relative w-full aspect-square bg-gradient-to-br from-[#F8F7F4] to-white overflow-hidden">
+            {/* Image Container */}
+            <div className="relative aspect-square overflow-hidden bg-gray-50">
                 <Image
                     src={imageUrl}
                     alt={product.name}
                     fill
-                    className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
-                    priority={priority}
-                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    // ✅ OPTIMIZARE: Loading prioritate pentru primele produse
+                    loading="lazy"
+                    // ✅ OPTIMIZARE: Placeholder pentru smooth loading
+                    placeholder="blur"
+                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2Y4ZjdmNCIvPjwvc3ZnPg=="
                 />
 
-                {/* Badge stoc */}
-                {!inStock && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">
-                            Stoc Epuizat
-                        </span>
+                {/* Badges */}
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                    {isOnSale && (
+                        <span className="bg-red-500 text-white px-2 py-0.5 md:py-1 rounded text-[10px] md:text-xs font-bold shadow-lg">
+              -{discountPercent}%
+            </span>
+                    )}
+                    {!inStock && (
+                        <span className="bg-gray-800 text-white px-2 py-0.5 md:py-1 rounded text-[10px] md:text-xs font-semibold shadow-lg">
+              Stoc Epuizat
+            </span>
+                    )}
+                </div>
+
+                {/* Quick view button - Desktop only */}
+                <div className="hidden md:block absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="bg-white text-[#1C4E80] px-4 py-2 rounded-lg font-medium text-sm shadow-lg">
+              Vezi Detalii
+            </span>
                     </div>
-                )}
+                </div>
             </div>
 
-            {/* Informatii produs */}
-            <div className="p-4">
-                {/* Categorie */}
+            {/* Content - LIGHTWEIGHT: Doar titlu, brand, pret */}
+            <div className="p-3 md:p-4">
+                {/* Brand/Category */}
                 {product.categories[0] && (
-                    <p className="text-xs text-[#C19A6B] font-medium mb-1 uppercase tracking-wide">
+                    <p className="text-[10px] md:text-xs text-[#7C8B96] mb-1 truncate uppercase tracking-wide">
                         {product.categories[0].name}
                     </p>
                 )}
 
-                {/* Nume produs */}
-                <h3 className="text-base font-semibold text-[#2C3538] mb-2 line-clamp-2 group-hover:text-[#1C4E80] transition-colors">
+                {/* Title - 2 lines max */}
+                <h3 className="font-semibold text-xs md:text-sm lg:text-base text-[#2C3538] mb-2 line-clamp-2 group-hover:text-[#1C4E80] transition-colors min-h-[2.5rem] md:min-h-[3rem]">
                     {product.name}
                 </h3>
 
-                {/* Pret */}
+                {/* Price */}
                 <div className="flex items-baseline gap-2 mb-3">
-                    {product.on_sale && product.sale_price ? (
-                        <>
-                            <span className="text-2xl font-bold text-[#1C4E80]">
-                                {formatPrice(product.sale_price)}
-                            </span>
-                            <span className="text-sm text-gray-400 line-through">
-                                {formatPrice(product.regular_price)}
-                            </span>
-                        </>
-                    ) : (
-                        <span className="text-2xl font-bold text-[#1C4E80]">
-                            {formatPrice(product.price)}
-                        </span>
+          <span className="text-base md:text-lg lg:text-xl font-bold text-[#1C4E80]">
+            {parseFloat(product.price).toFixed(0)} RON
+          </span>
+                    {isOnSale && (
+                        <span className="text-[10px] md:text-xs text-[#7C8B96] line-through">
+              {parseFloat(product.regular_price).toFixed(0)} RON
+            </span>
                     )}
                 </div>
 
-                {/* Button CTA */}
-                <button
-                    className="w-full bg-[#1C4E80] text-white py-2.5 rounded-lg hover:bg-[#153d66] transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        window.location.href = productUrl;
-                    }}
-                    disabled={!inStock}
-                >
-                    <ShoppingCart size={18} />
-                    {inStock ? 'Vezi Detalii' : 'Stoc Epuizat'}
+                {/* Stock Badge */}
+                <div className="flex items-center gap-2 text-xs mb-3">
+                    {inStock ? (
+                        <>
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <span className="text-green-700 font-medium">În stoc</span>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <span className="text-red-700 font-medium">Indisponibil</span>
+                        </>
+                    )}
+                </div>
+
+                {/* CTA - Mobile: Icon only, Desktop: Full button */}
+                <button className="w-full bg-[#F8F7F4] group-hover:bg-[#1C4E80] text-[#2C3538] group-hover:text-white px-3 py-2 md:py-2.5 rounded-md transition-all text-xs md:text-sm font-medium flex items-center justify-center gap-2">
+                    <ShoppingCart size={14} className="md:w-4 md:h-4" />
+                    <span>Vezi Detalii</span>
                 </button>
             </div>
-        </a>
+        </Link>
     );
 }
