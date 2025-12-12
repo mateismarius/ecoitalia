@@ -14,8 +14,8 @@ export default function ProductGrid({ products }: ProductGridProps) {
                     key={product.id}
                     product={product}
                     // Priority pentru primele 4 produse (above the fold)
-                    priority={index < 4}
-                    loading={index < 4 ? 'eager' : 'lazy'}
+                    priority={index < 8}
+                    loading={index < 8 ? 'eager' : 'lazy'}
                 />
             ))}
         </div>
