@@ -5,14 +5,17 @@ import "./globals.css";
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
+    display: 'swap', // ← CRITICAL: previne FOIT
+    preload: true,
 });
 
 const geistMono = Geist_Mono({
     variable: "--font-geist-mono",
     subsets: ["latin"],
+    display: 'swap',
+    preload: true,
 });
 
-// PWA Viewport Configuration
 export const viewport: Viewport = {
     width: 'device-width',
     initialScale: 1,
@@ -21,7 +24,6 @@ export const viewport: Viewport = {
     themeColor: '#1C4E80',
 };
 
-// SEO & PWA Metadata
 export const metadata: Metadata = {
     title: "EcoItalia - Produse Premium din Italia | FreeBubbles Distribuitor Oficial",
     description: "Produse de curatenie si ingrijire personala premium din Italia. FreeBubbles, Chanteclair, Tesori. Livrare gratuita in Brasov si Focsani.",
@@ -33,16 +35,6 @@ export const metadata: Metadata = {
         "livrare gratuita focsani",
         "distribuitor freebubbles"
     ],
-
-    // // PWA Configuration
-    // manifest: '/manifest.json',
-    // appleWebApp: {
-    //     capable: true,
-    //     statusBarStyle: 'default',
-    //     title: 'EcoItalia',
-    // },
-
-    // Open Graph
     openGraph: {
         type: 'website',
         locale: 'ro_RO',
@@ -59,16 +51,12 @@ export const metadata: Metadata = {
             },
         ],
     },
-
-    // Twitter Card
     twitter: {
         card: 'summary_large_image',
         title: 'EcoItalia - Produse Premium din Italia',
         description: 'Produse de curatenie premium. Livrare gratuita.',
         images: ['/og-image.jpg'],
     },
-
-    // Icons
     icons: {
         icon: [
             { url: '/favicon.ico' },
@@ -89,6 +77,12 @@ export default function RootLayout({
     return (
         <html lang="ro">
         <head>
+            {/* Preconnect pentru performance */}
+            <link rel="preconnect" href="https://ecoitalia.ro" crossOrigin="anonymous" />
+            <link rel="preconnect" href="https://shop.ecoitalia.ro" crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href="https://ecoitalia.ro" />
+            <link rel="dns-prefetch" href="https://shop.ecoitalia.ro" />
+
             {/* PWA Meta Tags */}
             <meta name="application-name" content="EcoItalia" />
             <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -96,10 +90,7 @@ export default function RootLayout({
             <meta name="apple-mobile-web-app-title" content="EcoItalia" />
             <meta name="format-detection" content="telephone=no" />
             <meta name="mobile-web-app-capable" content="yes" />
-
-            {/* Preconnect pentru performance */}
-            <link rel="preconnect" href={process.env.NEXT_PUBLIC_WC_STORE_URL} />
-            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_WC_STORE_URL} />
+            <title>EcoItalia | Produse premium pentru tine si casa ta</title>
         </head>
         <body
             className={`${geistSans.variable} ${geistMono.variable} antialiased`}
